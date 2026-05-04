@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KITE Dashboard - Data Perusahaan (Demo)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
+        body { background: #f0f2f5; padding: 20px 16px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 24px; gap: 12px; }
+        h1 { font-size: 1.5rem; background: linear-gradient(135deg, #1e3c72, #2b4c7c); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .btn { background: #2b6cb0; color: white; border: none; padding: 8px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; }
+        .btn-danger { background: #dc2626; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 24px; }
+        .stat-card { background: white; border-radius: 24px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e9edf2; }
+        .stat-number { font-size: 1.7rem; font-weight: 800; color: #1e293b; }
+        .charts-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .chart-card { background: white; border-radius: 22px; padding: 12px; border: 1px solid #e9edf2; }
+        .chart-title { font-weight: 600; margin-bottom: 8px; border-left: 4px solid #3b82f6; padding-left: 10px; }
+        .chart-container { width: 100%; height: 190px; }
+        .search-bar { background: white; padding: 8px 16px; border-radius: 50px; border: 1px solid #e2e8f0; display: flex; gap: 10px; margin-bottom: 16px; }
+        .search-bar input { flex: 1; border: none; outline: none; }
+        .table-wrapper { overflow-x: auto; background: white; border-radius: 20px; border: 1px solid #ecf3fa; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+        th { background: #f8fafc; padding: 10px 6px; text-align: left; font-weight: 600; }
+        td { padding: 8px 6px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        tr { cursor: pointer; }
+        tr:hover { background: #fefce8; }
+        .badge { display: inline-block; padding: 3px 8px; border-radius: 40px; font-size: 0.65rem; font-weight: 600; }
+        .badge-aktif { background: #dcfce7; color: #15803d; }
+        .badge-cabut { background: #fee2e2; color: #b91c1c; }
+        .badge-beku { background: #fff3e3; color: #b45309; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; border-radius: 28px; width: 90%; max-width: 800px; max-height: 85vh; overflow-y: auto; padding: 24px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .close { font-size: 28px; cursor: pointer; color: #64748b; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+        .form-field { display: flex; flex-direction: column; }
+        .form-field label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: #64748b; }
+        .form-field input, .form-field select { padding: 8px; border: 1px solid #ccc; border-radius: 16px; margin-top: 4px; font-size: 0.8rem; }
+        .action-buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+        footer { text-align: center; font-size: 0.7rem; margin-top: 24px; color: #6c757d; }
+        @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1><i class="fas fa-chalkboard-user"></i> KITE DASHBOARD</h1>
+        <button class="btn" id="openAddBtn"><i class="fas fa-plus"></i> Tambah Data</button>
+    </div>
+    <div class="stats-grid" id="statsCards"></div>
+    <div class="charts-row">
+        <div class="chart-card"><div class="chart-title">Status Fasilitas</div><canvas id="statusChart" class="chart-container"></canvas></div>
+        <div class="chart-card"><div class="chart-title">Top Sektor Industri</div><canvas id="sektorChart" class="chart-container"></canvas></div>
+        <div class="chart-card"><div class="chart-title">Kantor Pengawas</div><canvas id="wilayahChart" class="chart-container"></canvas></div>
+        <div class="chart-card"><div class="chart-title">Jenis NIPER</div><canvas id="niperChart" class="chart-container"></canvas></div>
+    </div>
+    <div class="search-bar"><i class="fas fa-search"></i><input type="text" id="searchInput" placeholder="Cari nama, kantor, SKEP..."></div>
+    <div class="table-wrapper"><table id="dataTable"><thead><tr><th>Nama Perusahaan</th><th>Kantor Pengawas</th><th>Jenis NIPER</th><th>Status</th><th>Sektor Industri</th><th>SKEP Awal</th><th>Aksi</th></thead><tbody id="tableBody"></tbody></table></div>
+    <footer>Klik nama perusahaan untuk lihat detail lengkap (36 kolom). Edit/Hapus/Tambah menggunakan password: <strong>admin123</strong></footer>
+</div>
+
+<!-- Modal Detail -->
+<div id="detailModal" class="modal"><div class="modal-content"><div class="modal-header"><h2 id="detailTitle">Detail Perusahaan</h2><span class="close" onclick="closeModal('detailModal')">&times;</span></div><div id="detailContent" class="form-grid"></div></div></div>
+
+<!-- Modal Form Tambah/Edit -->
+<div id="formModal" class="modal"><div class="modal-content"><div class="modal-header"><h2 id="formTitle">Tambah Data</h2><span class="close" onclick="closeModal('formModal')">&times;</span></div><div id="formFields" class="form-grid"></div><div class="action-buttons"><button class="btn" id="saveBtn">Simpan</button><button class="btn btn-danger" onclick="closeModal('formModal')">Batal</button></div></div></div>
+
+<!-- Modal Password -->
+<div id="passwordModal" class="modal"><div class="modal-content"><div class="modal-header"><h2>Verifikasi Password</h2><span class="close" onclick="closeModal('passwordModal')">&times;</span></div><div class="form-field"><label>Password Admin</label><input type="password" id="adminPassword" placeholder="Masukkan password"></div><div class="action-buttons"><button class="btn" id="verifyPasswordBtn">Verifikasi</button></div></div></div>
+
+<script>
+    // ================= DATA CONTOH (dari file Excel) =================
+    let allData = [
+        { "No":"1","NPWP":"754062677801000","Nama Perusahaan":"ROSIN TRADING INTERNATIONAL","Kantor Pengawas":"KWBC ACEH","Jenis NIPER":"PEMBEBASAN","SKEP":"10/MK/WBC.01/2026","Tanggal":"2026-03-31","SKEP PERUBAHAN TERAKHIR":"","Tanggal SKEP Perubahan Terakhir":"","NIB":"8120211162719","Alamat Perusahaan":"Jl. Blangkejeren-Takengon Km.15 Kampung Tungel Baru, Kec. Rikit Gaib, Kab. Gayo Lues Provinsi Aceh","Nama Penanggung Jawab":"Harun sengul / Direktur","Contact Perusahaan":"084118985410 / info@ptrosin.com","Alamat Pabrik":"Jl. Blangkejeren-Takengon Km.15","Provinsi":"SUMATERA UTARA","Bidang Usaha Industri":"Industri Kimia Dasar Organik","Sektor Industri":"Kimia Farmasi","Pengelompokan Bidang Usaha Industri":"Kimia dan Farmasi","Hasil Produksi":"Gum Rosin","KLU":"","Nama KLU":"","Golpok":"","Badan Usaha Penerima Subkon":"","Tahapan Kegiatan Produksi":"","CG":"","MITA":"","AEO":"","Riwayat Audit":"","Status":"Aktif","Tgl Beku":"","Tgl Cabut":"","History Beku":"","Pencabutan":"","Keterangan":"" },
+        { "No":"2","NPWP":"934211228028000","Nama Perusahaan":"KARYA BALI INDAH","Kantor Pengawas":"KWBC BALI NTB NTT","Jenis NIPER":"PENGEMBALIAN","SKEP":"23/MK.4/WBC.13/2023","Tanggal":"2023-12-15","SKEP PERUBAHAN TERAKHIR":"","Tanggal SKEP Perubahan Terakhir":"","NIB":"9120115191731","Alamat Perusahaan":"Graha Elizabeth, Jl. Tanah Abang II No. 17, Jakarta Pusat","Nama Penanggung Jawab":"Yustina Supeni","Contact Perusahaan":"custom.officer@balindomp.com","Alamat Pabrik":"Jl. Ida Bagus Mantra, Gianyar, Bali","Provinsi":"BALI","Bidang Usaha Industri":"Industri Minuman Beralkohol","Sektor Industri":"Industri Minuman Beralkohol","Pengelompokan Bidang Usaha Industri":"Industri Minuman Beralkohol","Hasil Produksi":"Gin, Vodka, Rum","KLU":"46333","Nama KLU":"PERDAGANGAN BESAR MINUMAN BERALKOHOL","Golpok":"PERDAGANGAN BESAR","Badan Usaha Penerima Subkon":"","Tahapan Kegiatan Produksi":"","CG":"","MITA":"","AEO":"","Riwayat Audit":"","Status":"Aktif","Tgl Beku":"","Tgl Cabut":"","History Beku":"","Pencabutan":"","Keterangan":"" },
+        { "No":"3","NPWP":"018352765904000","Nama Perusahaan":"KING TRADING","Kantor Pengawas":"KWBC BALI NTB NTT","Jenis NIPER":"PENGEMBALIAN","SKEP":"KM-02/WBC.12/2016","Tanggal":"2016-03-23","SKEP PERUBAHAN TERAKHIR":"KEP-9/MK.4/WBC.13/2023","Tanggal SKEP Perubahan Terakhir":"2023-10-12","NIB":"8120107961578","Alamat Perusahaan":"Jl. Raya kerobokan 1X Br. Semer Kerobokan, Bali","Nama Penanggung Jawab":"Lusia Novianti","Contact Perusahaan":"0361 – 731726 / info@kingtrading.com","Alamat Pabrik":"Jl. Raya kerobokan 1X, Bali","Provinsi":"BALI","Bidang Usaha Industri":"INDUSTRI PAKAIAN JADI","Sektor Industri":"TPT","Pengelompokan Bidang Usaha Industri":"Tekstil,Pakaian Jadi & aksesoris","Hasil Produksi":"Track & Ski suit, Ladies & Men T shirt","KLU":"14111","Nama KLU":"INDUSTRI PAKAIAN JADI (KONVEKSI) DARI TEKSTIL","Golpok":"INDUSTRI PAKAIAN JADI","Badan Usaha Penerima Subkon":"Perorangan","Tahapan Kegiatan Produksi":"Jahit","CG":"","MITA":"","AEO":"","Riwayat Audit":"","Status":"Beku","Tgl Beku":"2024-10-04","Tgl Cabut":"","History Beku":"S-133/WBC.13/2024","Pencabutan":"","Keterangan":"Perubahan SKEP" },
+        { "No":"4","NPWP":"016634750904000","Nama Perusahaan":"UBUD CORNER","Kantor Pengawas":"KWBC BALI NTB NTT","Jenis NIPER":"PEMBEBASAN","SKEP":"KM-1/WBC.13/2018","Tanggal":"2018-03-02","SKEP PERUBAHAN TERAKHIR":"","Tanggal SKEP Perubahan Terakhir":"","NIB":"","Alamat Perusahaan":"Jl. Raya Batubulan Gg. Candrametu, Gianyar","Nama Penanggung Jawab":"I Ketut Suardiana","Contact Perusahaan":"0361-461511","Alamat Pabrik":"Jl. Raya Batubulan, Gianyar","Provinsi":"BALI","Bidang Usaha Industri":"Industri Barang Perhiasan","Sektor Industri":"Lainnya","Pengelompokan Bidang Usaha Industri":"Perhiasan","Hasil Produksi":"Pendant, Cincin, Anting","KLU":"47735","Nama KLU":"PERDAGANGAN ECERAN BARANG PERHIASAN","Golpok":"PERDAGANGAN ECERAN","Badan Usaha Penerima Subkon":"","Tahapan Kegiatan Produksi":"","CG":"","MITA":"","AEO":"","Riwayat Audit":"","Status":"Cabut","Tgl Beku":"","Tgl Cabut":"2020-10-19","History Beku":"","Pencabutan":"KM-1/WBC.13/2020","Keterangan":"Dicabut" },
+        { "No":"5","NPWP":"010617496055000","Nama Perusahaan":"INDOSAFETY SENTOSA INDUSTRY","Kantor Pengawas":"KWBC JABAR","Jenis NIPER":"PENGEMBALIAN","SKEP":"110/WBC.08/2017","Tanggal":"2017-06-19","SKEP PERUBAHAN TERAKHIR":"","Tanggal SKEP Perubahan Terakhir":"","NIB":"","Alamat Perusahaan":"Kawasan Industri Mitra Karawang","Nama Penanggung Jawab":"Ho Haryanto Hosanna","Contact Perusahaan":"0267-8638020","Alamat Pabrik":"Kawasan Industri Mitra Karawang","Provinsi":"JAWA BARAT","Bidang Usaha Industri":"Industri Komponen Kendaraan","Sektor Industri":"Kendaraan Motor","Pengelompokan Bidang Usaha Industri":"Kendaraan Bermotor","Hasil Produksi":"Backing Plate","KLU":"29300","Nama KLU":"SUKU CADANG KENDARAAN","Golpok":"INDUSTRI KENDARAAN","Badan Usaha Penerima Subkon":"PT Mics Steel","Tahapan Kegiatan Produksi":"Plating","CG":"","MITA":"MITA","AEO":"","Riwayat Audit":"","Status":"Aktif","Tgl Beku":"","Tgl Cabut":"","History Beku":"","Pencabutan":"","Keterangan":"" }
+    ];
+
+    // Kolom lengkap (36 kolom)
+    const ALL_COLUMNS = [
+        "No", "NPWP", "Nama Perusahaan", "Kantor Pengawas", "Jenis NIPER", 
+        "SKEP", "Tanggal", "SKEP PERUBAHAN TERAKHIR", "Tanggal SKEP Perubahan Terakhir", 
+        "NIB", "Alamat Perusahaan", "Nama Penanggung Jawab", "Contact Perusahaan", 
+        "Alamat Pabrik", "Provinsi", "Bidang Usaha Industri", "Sektor Industri", 
+        "Pengelompokan Bidang Usaha Industri", "Hasil Produksi", "KLU", "Nama KLU", 
+        "Golpok", "Badan Usaha Penerima Subkon", "Tahapan Kegiatan Produksi", 
+        "CG", "MITA", "AEO", "Riwayat Audit", "Status", "Tgl Beku", "Tgl Cabut", 
+        "History Beku", "Pencabutan", "Keterangan"
+    ];
+
+    let charts = {};
+    let currentAction = null;
+    let currentEditIndex = null;
+
+    // Simpan ke localStorage
+    function saveToLocalStorage() { localStorage.setItem("kite_data", JSON.stringify(allData)); }
+    function loadFromLocalStorage() {
+        const stored = localStorage.getItem("kite_data");
+        if (stored) { try { allData = JSON.parse(stored); } catch(e) {} }
+    }
+    loadFromLocalStorage();
+
+    function renderStats() {
+        const aktif = allData.filter(d => d.Status === "Aktif").length;
+        const cabut = allData.filter(d => d.Status === "Cabut").length;
+        const beku = allData.filter(d => d.Status === "Beku").length;
+        document.getElementById("statsCards").innerHTML = `
+            <div class="stat-card"><div><h3>Total</h3><div class="stat-number">${allData.length}</div></div><i class="fas fa-building fa-2x"></i></div>
+            <div class="stat-card"><div><h3>Aktif</h3><div class="stat-number">${aktif}</div></div><i class="fas fa-check-circle fa-2x" style="color:#2ecc71;"></i></div>
+            <div class="stat-card"><div><h3>Cabut</h3><div class="stat-number">${cabut}</div></div><i class="fas fa-ban fa-2x" style="color:#e74c3c;"></i></div>
+            <div class="stat-card"><div><h3>Beku</h3><div class="stat-number">${beku}</div></div><i class="fas fa-hourglass-half fa-2x" style="color:#f39c12;"></i></div>
+        `;
+    }
+
+    function renderTable(filter = "") {
+        const filtered = allData.filter(d => 
+            (d["Nama Perusahaan"] || "").toLowerCase().includes(filter.toLowerCase()) ||
+            (d["Kantor Pengawas"] || "").toLowerCase().includes(filter.toLowerCase()) ||
+            (d["SKEP"] || "").toLowerCase().includes(filter.toLowerCase())
+        );
+        document.getElementById("tableBody").innerHTML = filtered.map((d, idx) => {
+            let statusClass = d.Status === "Aktif" ? "badge-aktif" : (d.Status === "Cabut" ? "badge-cabut" : "badge-beku");
+            const originalIdx = allData.findIndex(x => x["Nama Perusahaan"] === d["Nama Perusahaan"] && x["NPWP"] === d["NPWP"]);
+            return `<tr>
+                <td style="color:#2b6cb0; text-decoration:underline; cursor:pointer;" onclick='showDetail(${JSON.stringify(d).replace(/'/g, "&#39;")})'>${escapeHtml(d["Nama Perusahaan"] || "-")}</td>
+                <td>${escapeHtml(d["Kantor Pengawas"] || "-")}</td>
+                <td>${escapeHtml(d["Jenis NIPER"] || "-")}</td>
+                <td><span class="badge ${statusClass}">${d.Status || "-"}</span></td>
+                <td>${escapeHtml((d["Sektor Industri"] || "").substring(0, 35))}</td>
+                <td>${escapeHtml(d["SKEP"] || "-")}</td>
+                <td><button class="btn" style="padding:4px 12px; font-size:0.7rem;" onclick='event.stopPropagation(); editData(${originalIdx})'>Edit</button>
+                    <button class="btn btn-danger" style="padding:4px 12px; font-size:0.7rem; background:#dc2626;" onclick='event.stopPropagation(); confirmDelete(${originalIdx})'>Hapus</button></td>
+            </tr>`;
+        }).join("");
+    }
+
+    function updateCharts() {
+        const aktif = allData.filter(d => d.Status === "Aktif").length;
+        const cabut = allData.filter(d => d.Status === "Cabut").length;
+        const beku = allData.filter(d => d.Status === "Beku").length;
+        if (charts.status) charts.status.destroy();
+        charts.status = new Chart(document.getElementById("statusChart"), {
+            type: 'pie', data: { labels: ['Aktif','Cabut','Beku'], datasets: [{ data: [aktif,cabut,beku], backgroundColor: ['#2ecc71','#e74c3c','#f39c12'] }] },
+            options: { plugins: { datalabels: { color: 'white', formatter: (v) => v } }, responsive: true }, plugins: [ChartDataLabels]
+        });
+        
+        const sektorMap = new Map();
+        allData.forEach(d => { let s = (d["Sektor Industri"] || "").split(",")[0]; if(s) sektorMap.set(s, (sektorMap.get(s)||0)+1); });
+        const topSektor = Array.from(sektorMap.entries()).sort((a,b)=>b[1]-a[1]).slice(0,4);
+        if (charts.sektor) charts.sektor.destroy();
+        charts.sektor = new Chart(document.getElementById("sektorChart"), {
+            type: 'bar', data: { labels: topSektor.map(s=>s[0].length>20?s[0].substring(0,17)+"...":s[0]), datasets: [{ label: 'Jumlah', data: topSektor.map(s=>s[1]), backgroundColor: '#3b82f6' }] },
+            options: { indexAxis: 'y', plugins: { datalabels: { anchor: 'end', align: 'right', formatter: (v) => v } }, responsive: true }, plugins: [ChartDataLabels]
+        });
+        
+        const wilayahMap = new Map();
+        allData.forEach(d => wilayahMap.set(d["Kantor Pengawas"], (wilayahMap.get(d["Kantor Pengawas"])||0)+1));
+        const topWilayah = Array.from(wilayahMap.entries()).sort((a,b)=>b[1]-a[1]).slice(0,6);
+        if (charts.wilayah) charts.wilayah.destroy();
+        charts.wilayah = new Chart(document.getElementById("wilayahChart"), {
+            type: 'bar', data: { labels: topWilayah.map(w=>w[0]), datasets: [{ label: 'Perusahaan', data: topWilayah.map(w=>w[1]), backgroundColor: '#10b981' }] },
+            options: { plugins: { datalabels: { anchor: 'end', align: 'top', formatter: (v) => v } }, responsive: true }, plugins: [ChartDataLabels]
+        });
+        
+        const pembebasan = allData.filter(d => d["Jenis NIPER"] === "PEMBEBASAN").length;
+        const pengembalian = allData.filter(d => d["Jenis NIPER"] === "PENGEMBALIAN").length;
+        if (charts.niper) charts.niper.destroy();
+        charts.niper = new Chart(document.getElementById("niperChart"), {
+            type: 'doughnut', data: { labels: ['Pembebasan','Pengembalian'], datasets: [{ data: [pembebasan,pengembalian], backgroundColor: ['#4f46e5','#ec489a'] }] },
+            options: { plugins: { datalabels: { color: 'white', formatter: (v) => v } }, responsive: true }, plugins: [ChartDataLabels]
+        });
+    }
+
+    function renderAll() { renderStats(); renderTable(document.getElementById("searchInput").value); updateCharts(); saveToLocalStorage(); }
+
+    // Modal Functions
+    function showDetail(data) {
+        const container = document.getElementById("detailContent");
+        container.innerHTML = ALL_COLUMNS.map(col => `<div class="form-field"><label>${col}</label><div><strong>${escapeHtml(data[col] || "-")}</strong></div></div>`).join("");
+        document.getElementById("detailTitle").innerHTML = `<i class="fas fa-building"></i> ${escapeHtml(data["Nama Perusahaan"] || "")}`;
+        document.getElementById("detailModal").style.display = "flex";
+    }
+
+    function openFormModal(data = null) {
+        const container = document.getElementById("formFields");
+        document.getElementById("formTitle").innerHTML = data ? "Edit Data Perusahaan" : "Tambah Data Perusahaan";
+        container.innerHTML = ALL_COLUMNS.map(col => `<div class="form-field"><label>${col}</label><input type="text" id="field_${col.replace(/\s/g, '_')}" value="${escapeHtml(data ? (data[col] || "") : "")}"></div>`).join("");
+        document.getElementById("formModal").style.display = "flex";
+        document.getElementById("saveBtn").onclick = () => {
+            const newData = {};
+            ALL_COLUMNS.forEach(col => { newData[col] = document.getElementById(`field_${col.replace(/\s/g, '_')}`).value; });
+            if (currentAction === "edit" && currentEditIndex !== null) allData[currentEditIndex] = newData;
+            else allData.push(newData);
+            renderAll();
+            closeModal("formModal");
+        };
+    }
+
+    function editData(idx) { currentAction = "edit"; currentEditIndex = idx; showPasswordModal(() => openFormModal(allData[idx])); }
+    function confirmDelete(idx) { currentAction = "delete"; currentEditIndex = idx; showPasswordModal(() => { allData.splice(idx,1); renderAll(); closeModal("passwordModal"); alert("Data dihapus"); }); }
+    function openAddData() { currentAction = "add"; currentEditIndex = null; showPasswordModal(() => openFormModal(null)); }
+
+    function showPasswordModal(callback) {
+        document.getElementById("passwordModal").style.display = "flex";
+        document.getElementById("verifyPasswordBtn").onclick = () => {
+            const pwd = document.getElementById("adminPassword").value;
+            if (pwd === "admin123") { closeModal("passwordModal"); callback(); }
+            else { alert("Password salah! Gunakan: admin123"); }
+            document.getElementById("adminPassword").value = "";
+        };
+    }
+
+    function closeModal(modalId) { document.getElementById(modalId).style.display = "none"; }
+    function escapeHtml(str) { if(!str) return ""; return String(str).replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+
+    document.getElementById("openAddBtn").onclick = openAddData;
+    document.getElementById("searchInput").oninput = (e) => renderTable(e.target.value);
+    window.onclick = (e) => { if (e.target.classList.contains("modal")) e.target.style.display = "none"; };
+
+    renderAll();
+</script>
+</body>
+</html>
